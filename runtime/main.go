@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/alphabatem/nft-proxy/service"
 	"github.com/alphabatem/nft-proxy/share"
@@ -10,10 +11,11 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"sync"
 	"syscall"
 
 	// babilu-online/common/context maybe unavailable
-	"github.com/babilu-online/common/context"
+	//"github.com/babilu-online/common/context"
 	"log"
 )
 
@@ -23,6 +25,10 @@ func main() {
 	cfg := share.NewEnvConfig()
 	cfg.InitConfig()
 
+	port, err := strconv.Atoi(cfg.GetHTTPPort())
+	if err != nil {
+		log.Fatalf("Invalid port: %v", err)
+	}
 	//Because the "github.com/babilu-online/common/context" is not available, we can't use the same code as the original
 	// i will build a new context manually to replace the original ones
 	//ctx, err := context.NewCtx(
@@ -35,40 +41,44 @@ func main() {
 	//	&services.HttpService{},
 	//)
 	// by using graceful shutdown,we can stop the services gracefully instead of force stop
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 
+	var wg sync.WaitGroup
+	wg.Add(1)
 	// Run services in a separate goroutine
 	go func() {
-		cfg := share.NewEnvConfig()
-		cfg.InitConfig()
-		dbEnv := cfg.GetDB()
-		port, _ := strconv.Atoi(cfg.GetHTTPPort())
+		defer wg.Done()
 
-		gin := ginc.NewHttpService(port)
-		if err := gin.Configure(c); err != nil {
-			fmt.Errorf("failed to configure gin: %w", err)
+		ginService := ginc.NewHttpService(port)
+		if err := ginService.Configure(ctx); err != nil {
+			log.Fatalf("Failed to configure HTTP service: %v", err)
 		}
-		route := gin.GetGin()
-		v1 := route.Group("/v1")
 
+		router := ginService.GetGin()
+		v1 := router.Group("/v1")
+
+		dbEnv := cfg.GetDB()
 		// Initialize the database
-		gorm := gormc.NewSqliteService(dbEnv)
+		gormService := gormc.NewSqliteService(dbEnv)
 
-		sctx := share.NewServiceContext(cfg, v1, gorm)
+		sctx := share.NewServiceContext(cfg, v1, gormService)
 
 		//// @Summary Ping liquify services
 		//// @Accept  json
 		//// @Produce json
 		//// @Router /ping [get]
-		route.Get("/ping", func(c *gin.Context) {
+		router.Get("/ping", func(c *gin.Context) {
 			c.JSON(http.StatusOK, share.ResponseData("pong"))
 		})
 
 		service.SetUpService(route, sctx)
 
-		if err := gin.Start(); err != nil {
-			fmt.Errorf("failed to start gin: %w", err)
+		if err := ginService.Start(); err != nil {
+			log.Fatalf("Failed to start HTTP service: %v", err)
 		}
 	}()
 
@@ -76,15 +86,11 @@ func main() {
 	// i don't know func Shutdown() is available in context.Context???
 	// i hope it available
 	<-stop
-	if err := ctx.Shutdown(); err != nil {
-		log.Fatalf("Failed to shutdown services: %v", err)
-	}
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-}
+	log.Println("Shutting down services...")
+	cancel()
 
-func startServer(c context.Context) error {
+	// Wait for all goroutines to finish
+	wg.Wait()
 
+	log.Println("Services shut down gracefully.")
 }
