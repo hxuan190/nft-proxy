@@ -2,7 +2,6 @@ package token_metadata
 
 import (
 	token_metadata "github.com/gagliardetto/metaplex-go/clients/token-metadata"
-	"github.com/gagliardetto/solana-go"
 )
 
 type Protocol uint

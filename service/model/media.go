@@ -1,4 +1,4 @@
-package nft_proxy
+package model
 
 import "time"
 

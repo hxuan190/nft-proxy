@@ -1,7 +1,7 @@
 package main
 
 import (
-	nft_proxy "github.com/alphabatem/nft-proxy"
+	"github.com/alphabatem/nft-proxy/service/model"
 	token_metadata "github.com/gagliardetto/metaplex-go/clients/token-metadata"
 	"log"
 )
@@ -12,8 +12,8 @@ type collectionLoader struct {
 	mediaWorkerCount int
 
 	metaDataIn chan *token_metadata.Metadata
-	fileDataIn chan *nft_proxy.NFTMetadataSimple
-	mediaIn    chan *nft_proxy.Media
+	fileDataIn chan *model.NFTMetadataSimple
+	mediaIn    chan *model.Media
 }
 
 func main() {
@@ -24,8 +24,8 @@ func main() {
 		fileWorkerCount:  3,
 		mediaWorkerCount: 1,
 		metaDataIn:       make(chan *token_metadata.Metadata),
-		fileDataIn:       make(chan *nft_proxy.NFTMetadataSimple),
-		mediaIn:          make(chan *nft_proxy.Media),
+		fileDataIn:       make(chan *model.NFTMetadataSimple),
+		mediaIn:          make(chan *model.Media),
 	}
 
 	l.spawnWorkers()
@@ -65,17 +65,17 @@ func (l *collectionLoader) loadCollection() error {
 	return nil
 }
 
-//Fetches the off-chain data from the on-chain account & passes to `fileDataWorker`
+// Fetches the off-chain data from the on-chain account & passes to `fileDataWorker`
 func (l *collectionLoader) metaDataWorker() {
 
 }
 
-//Downloads required files & passes to `mediaWorker`
+// Downloads required files & passes to `mediaWorker`
 func (l *collectionLoader) fileDataWorker() {
 
 }
 
-//Stores media data down to SQL
+// Stores media data down to SQL
 func (l *collectionLoader) mediaWorker() {
 	for m := range l.mediaIn {
 		//TODO SAVE TO DB

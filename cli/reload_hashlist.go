@@ -3,8 +3,8 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	nft_proxy "github.com/alphabatem/nft-proxy"
 	"github.com/alphabatem/nft-proxy/service"
+	nft_proxy "github.com/alphabatem/nft-proxy/service/model"
 	"github.com/babilu-online/common/context"
 	"github.com/joho/godotenv"
 	"log"
