@@ -40,8 +40,35 @@ func main() {
 
 	// Run services in a separate goroutine
 	go func() {
-		if err := ctx.Run(); err != nil {
-			log.Fatalf("Failed to run services: %v", err)
+		cfg := share.NewEnvConfig()
+		cfg.InitConfig()
+		dbEnv := cfg.GetDB()
+		port, _ := strconv.Atoi(cfg.GetHTTPPort())
+
+		gin := ginc.NewHttpService(port)
+		if err := gin.Configure(c); err != nil {
+			return fmt.Errorf("failed to configure gin: %w", err)
+		}
+		route := gin.GetGin()
+		v1 := route.Group("/v1")
+
+		// Initialize the database
+		gorm := gormc.NewSqliteService(dbEnv)
+
+		sctx := share.NewServiceContext(cfg, v1, gorm)
+
+		//// @Summary Ping liquify services
+		//// @Accept  json
+		//// @Produce json
+		//// @Router /ping [get]
+		route.Get("/ping", func(c *gin.Context) {
+			c.JSON(http.StatusOK, share.ResponseData("pong"))
+		})
+
+		service.SetUpService(route, sctx)
+
+		if err := gin.Start(); err != nil {
+			fmt.Errorf("failed to start gin: %w", err)
 		}
 	}()
 
@@ -59,35 +86,5 @@ func main() {
 }
 
 func startServer(c context.Context) error {
-	cfg := share.NewEnvConfig()
-	cfg.InitConfig()
-	dbEnv := cfg.GetDB()
-	port, _ := strconv.Atoi(cfg.GetHTTPPort())
-
-	gin := ginc.NewHttpService(port)
-	if err := gin.Configure(c); err != nil {
-		return fmt.Errorf("failed to configure gin: %w", err)
-	}
-	route := gin.GetGin()
-	v1 := route.Group("/v1")
-
-	// Initialize the database
-	gorm := gormc.NewSqliteService(dbEnv)
-
-	sctx := share.NewServiceContext(cfg, v1, gorm)
-
-	//// @Summary Ping liquify services
-	//// @Accept  json
-	//// @Produce json
-	//// @Router /ping [get]
-	route.Get("/ping", func(c *gin.Context) {
-		c.JSON(http.StatusOK, share.ResponseData("pong"))
-	})
-
-	service.SetUpService(route, sctx)
-
-	if err := gin.Start(); err != nil {
-		return fmt.Errorf("failed to start gin: %w", err)
-	}
 
 }
