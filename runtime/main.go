@@ -47,7 +47,7 @@ func main() {
 
 		gin := ginc.NewHttpService(port)
 		if err := gin.Configure(c); err != nil {
-			return fmt.Errorf("failed to configure gin: %w", err)
+			fmt.Errorf("failed to configure gin: %w", err)
 		}
 		route := gin.GetGin()
 		v1 := route.Group("/v1")
